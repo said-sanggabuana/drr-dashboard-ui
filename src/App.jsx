@@ -54,6 +54,7 @@ export default function App() {
           }
         ]
       },
+      // Centered precisely over Nanjungmekar / Cicalengka
       center: [107.82, -6.97],
       zoom: 12.5,
       pitch: 45
@@ -64,8 +65,9 @@ export default function App() {
     map.current.on('load', () => {
       map.current.addSource('flood-data', {
         type: 'image',
-        url: '', 
-        coordinates: [[0,0], [0,0], [0,0], [0,0]]
+        // Invisible 1x1 GIF placeholder keeps WebGL engine stable on boot
+        url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 
+        coordinates: [[107.7, -6.9], [107.8, -6.9], [107.8, -7.0], [107.7, -7.0]]
       });
 
       map.current.addLayer({
@@ -73,7 +75,7 @@ export default function App() {
         type: 'raster',
         source: 'flood-data',
         paint: {
-          'raster-opacity': 0.7,
+          'raster-opacity': 0.8,
           'raster-fade-duration': 500
         }
       });
@@ -100,26 +102,25 @@ export default function App() {
         const data = rasters[0]; 
         
         const bbox = image.getBoundingBox();
-        let dynamicCoordinates = [
-          [bbox[0], bbox[3]], // Top-Left
-          [bbox[2], bbox[3]], // Top-Right
-          [bbox[2], bbox[1]], // Bottom-Right
-          [bbox[0], bbox[1]]  // Bottom-Left
-        ];
+        let minX = bbox[0];
+        let minY = bbox[1];
+        let maxX = bbox[2];
+        let maxY = bbox[3];
 
-        // ==========================================
-        // THE UTM PROJECTION SAFETY CATCH
-        // If the coordinates are larger than 180 degrees, the file is in meters.
-        // We override the math and snap the image to the Cicalengka basin manually.
-        // ==========================================
-        if (Math.abs(bbox[0]) > 180) {
-          dynamicCoordinates = [
-            [107.70, -6.90], 
-            [107.85, -6.90], 
-            [107.85, -7.00], 
-            [107.70, -7.00]
-          ];
+        // Safely check if Python exported WGS84 as [Lat, Lon] instead of [Lon, Lat]
+        if (minX < 0 && minY > 0) {
+          minX = bbox[1];
+          minY = bbox[0];
+          maxX = bbox[3];
+          maxY = bbox[2];
         }
+
+        const dynamicCoordinates = [
+          [minX, maxY], // Top-Left
+          [maxX, maxY], // Top-Right
+          [maxX, minY], // Bottom-Right
+          [minX, minY]  // Bottom-Left
+        ];
 
         const canvas = document.createElement('canvas');
         canvas.width = image.getWidth();
@@ -130,14 +131,15 @@ export default function App() {
         let hasWater = false;
         for (let i = 0; i < data.length; i++) {
           const depth = data[i];
-          if (depth > 0) {
+          // Filter out noise (<0.01m) and massive anomalies (>100m)
+          if (depth > 0.01 && depth < 100) { 
             hasWater = true;
-            imageData.data[i * 4] = 59;       
-            imageData.data[i * 4 + 1] = 130;  
-            imageData.data[i * 4 + 2] = 246;  
-            imageData.data[i * 4 + 3] = Math.min(255, depth * 80 + 50); 
+            imageData.data[i * 4] = 14;       // R (Deep Blue)
+            imageData.data[i * 4 + 1] = 165;  // G
+            imageData.data[i * 4 + 2] = 233;  // B
+            imageData.data[i * 4 + 3] = Math.min(255, depth * 100 + 150); // Alpha dynamic by depth
           } else {
-            imageData.data[i * 4 + 3] = 0;    
+            imageData.data[i * 4 + 3] = 0;    // Transparent
           }
         }
 
@@ -151,7 +153,7 @@ export default function App() {
           });
         }
         
-        if (!hasWater) setErrorLog("Data loaded, but all depths are 0 (dry).");
+        if (!hasWater) setErrorLog("Data loaded, but all depths are effectively 0 (dry).");
 
       } catch (error) {
         console.error("Fetch error:", error);
@@ -159,8 +161,8 @@ export default function App() {
         
         if (map.current.getSource('flood-data')) {
           map.current.getSource('flood-data').updateImage({
-            url: '',
-            coordinates: [[0,0], [0,0], [0,0], [0,0]]
+            url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+            coordinates: [[107.7, -6.9], [107.8, -6.9], [107.8, -7.0], [107.7, -7.0]]
           });
         }
       }
