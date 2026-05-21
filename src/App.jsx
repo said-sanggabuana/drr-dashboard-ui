@@ -15,9 +15,18 @@ export default function App() {
   const [activeOffset, setActiveOffset] = useState(0); 
   const [isRendering, setIsRendering] = useState(false);
   const [errorLog, setErrorLog] = useState("");
+  
+  // NEW: Mobile responsiveness tracker
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ==========================================
-  // 2. TEMPORAL LOGIC (Derived Directly)
+  // 2. TEMPORAL LOGIC 
   // ==========================================
   const today = new Date();
   today.setDate(today.getDate() + activeOffset);
@@ -54,7 +63,6 @@ export default function App() {
           }
         ]
       },
-      // Centered precisely over Nanjungmekar / Cicalengka
       center: [107.82, -6.97],
       zoom: 12.5,
       pitch: 45
@@ -65,7 +73,6 @@ export default function App() {
     map.current.on('load', () => {
       map.current.addSource('flood-data', {
         type: 'image',
-        // Invisible 1x1 GIF placeholder keeps WebGL engine stable on boot
         url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 
         coordinates: [[107.7, -6.9], [107.8, -6.9], [107.8, -7.0], [107.7, -7.0]]
       });
@@ -107,7 +114,6 @@ export default function App() {
         let maxX = bbox[2];
         let maxY = bbox[3];
 
-        // Safely check if Python exported WGS84 as [Lat, Lon] instead of [Lon, Lat]
         if (minX < 0 && minY > 0) {
           minX = bbox[1];
           minY = bbox[0];
@@ -116,10 +122,10 @@ export default function App() {
         }
 
         const dynamicCoordinates = [
-          [minX, maxY], // Top-Left
-          [maxX, maxY], // Top-Right
-          [maxX, minY], // Bottom-Right
-          [minX, minY]  // Bottom-Left
+          [minX, maxY], 
+          [maxX, maxY], 
+          [maxX, minY], 
+          [minX, minY]  
         ];
 
         const canvas = document.createElement('canvas');
@@ -131,15 +137,14 @@ export default function App() {
         let hasWater = false;
         for (let i = 0; i < data.length; i++) {
           const depth = data[i];
-          // Filter out noise (<0.01m) and massive anomalies (>100m)
           if (depth > 0.01 && depth < 100) { 
             hasWater = true;
-            imageData.data[i * 4] = 14;       // R (Deep Blue)
-            imageData.data[i * 4 + 1] = 165;  // G
-            imageData.data[i * 4 + 2] = 233;  // B
-            imageData.data[i * 4 + 3] = Math.min(255, depth * 100 + 150); // Alpha dynamic by depth
+            imageData.data[i * 4] = 14;       
+            imageData.data[i * 4 + 1] = 165;  
+            imageData.data[i * 4 + 2] = 233;  
+            imageData.data[i * 4 + 3] = Math.min(255, depth * 100 + 150); 
           } else {
-            imageData.data[i * 4 + 3] = 0;    // Transparent
+            imageData.data[i * 4 + 3] = 0;    
           }
         }
 
@@ -180,10 +185,30 @@ export default function App() {
   // 5. DASHBOARD UI
   // ==========================================
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif', backgroundColor: '#0f172a', color: 'white' }}>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: isMobile ? 'column-reverse' : 'row', 
+      height: '100vh', 
+      fontFamily: 'sans-serif', 
+      backgroundColor: '#0f172a', 
+      color: 'white',
+      overflow: 'hidden'
+    }}>
       
-      {/* SIDEBAR */}
-      <div style={{ width: '350px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px', borderRight: '1px solid #1e293b', zIndex: 10 }}>
+      {/* SIDEBAR / BOTTOM SHEET */}
+      <div style={{ 
+        width: isMobile ? '100%' : '350px', 
+        height: isMobile ? 'auto' : '100vh',
+        maxHeight: isMobile ? '45vh' : 'none',
+        padding: '20px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '24px', 
+        borderRight: isMobile ? 'none' : '1px solid #1e293b', 
+        borderTop: isMobile ? '1px solid #1e293b' : 'none',
+        overflowY: 'auto',
+        zIndex: 10 
+      }}>
         
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -192,7 +217,7 @@ export default function App() {
           <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>Cikeruh-Cimande Basin Monitoring</p>
         </div>
 
-        <hr style={{ borderColor: '#1e293b', width: '100%' }} />
+        <hr style={{ borderColor: '#1e293b', width: '100%', margin: 0 }} />
 
         <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -239,10 +264,10 @@ export default function App() {
       </div>
 
       {/* MAP CANVAS */}
-      <div style={{ flexGrow: 1, position: 'relative' }}>
+      <div style={{ flexGrow: 1, position: 'relative', minHeight: isMobile ? '55vh' : 'auto' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
         
-        <div style={{ position: 'absolute', bottom: '24px', left: '24px', backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #334155' }}>
+        <div style={{ position: 'absolute', bottom: isMobile ? '16px' : '24px', left: isMobile ? '16px' : '24px', backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #334155' }}>
           <AlertTriangle color="#ef4444" size={24} />
           <div>
             <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Risk Status</p>
