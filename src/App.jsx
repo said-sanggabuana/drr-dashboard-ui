@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Layers, Activity, AlertTriangle, Calendar } from 'lucide-react';
@@ -7,28 +7,24 @@ import { fromUrl } from 'geotiff';
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-// FIX 1: Updated to your exact GitHub username and repository name
 const GITHUB_PAGES_BASE_URL = "https://said-sanggabuana.github.io/nanjungmekar-drr-engine";
 
 export default function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [activeOffset, setActiveOffset] = useState(0); 
-  const [currentDateString, setCurrentDateString] = useState("");
   const [isRendering, setIsRendering] = useState(false);
   const [errorLog, setErrorLog] = useState("");
 
   // ==========================================
-  // 2. TEMPORAL LOGIC 
+  // 2. TEMPORAL LOGIC (Derived Directly)
   // ==========================================
-  useEffect(() => {
-    const today = new Date();
-    today.setDate(today.getDate() + activeOffset);
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    setCurrentDateString(`${yyyy}${mm}${dd}`);
-  }, [activeOffset]);
+  const today = new Date();
+  today.setDate(today.getDate() + activeOffset);
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const currentDateString = `${yyyy}${mm}${dd}`;
 
   // ==========================================
   // 3. MAP INITIALIZATION
@@ -58,7 +54,7 @@ export default function App() {
           }
         ]
       },
-      center: [107.82, -6.97], // Adjusted center closer to Cicalengka
+      center: [107.82, -6.97],
       zoom: 12.5,
       pitch: 45
     });
@@ -66,7 +62,6 @@ export default function App() {
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.current.on('load', () => {
-      // Add a dummy source with [0,0] coordinates; we will overwrite this dynamically
       map.current.addSource('flood-data', {
         type: 'image',
         url: '', 
@@ -104,7 +99,6 @@ export default function App() {
         const rasters = await image.readRasters();
         const data = rasters[0]; 
         
-        // FIX 2: Dynamically extract the exact geographic bounds from the TIF file!
         const bbox = image.getBoundingBox();
         const dynamicCoordinates = [
           [bbox[0], bbox[3]], // Top-Left
@@ -149,7 +143,6 @@ export default function App() {
         console.error("Fetch error:", error);
         setErrorLog("File not found on GitHub. Check URL or wait for Action to finish.");
         
-        // Clear the map if data fails
         if (map.current.getSource('flood-data')) {
           map.current.getSource('flood-data').updateImage({
             url: '',
