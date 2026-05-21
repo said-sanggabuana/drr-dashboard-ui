@@ -100,12 +100,26 @@ export default function App() {
         const data = rasters[0]; 
         
         const bbox = image.getBoundingBox();
-        const dynamicCoordinates = [
+        let dynamicCoordinates = [
           [bbox[0], bbox[3]], // Top-Left
           [bbox[2], bbox[3]], // Top-Right
           [bbox[2], bbox[1]], // Bottom-Right
           [bbox[0], bbox[1]]  // Bottom-Left
         ];
+
+        // ==========================================
+        // THE UTM PROJECTION SAFETY CATCH
+        // If the coordinates are larger than 180 degrees, the file is in meters.
+        // We override the math and snap the image to the Cicalengka basin manually.
+        // ==========================================
+        if (Math.abs(bbox[0]) > 180) {
+          dynamicCoordinates = [
+            [107.70, -6.90], 
+            [107.85, -6.90], 
+            [107.85, -7.00], 
+            [107.70, -7.00]
+          ];
+        }
 
         const canvas = document.createElement('canvas');
         canvas.width = image.getWidth();
