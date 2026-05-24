@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Layers, Activity, AlertTriangle, Calendar } from 'lucide-react';
+import { Layers, Activity, AlertTriangle, Calendar, CheckCircle } from 'lucide-react';
 import { fromUrl } from 'geotiff';
 
 // ==========================================
@@ -16,7 +16,9 @@ export default function App() {
   const [isRendering, setIsRendering] = useState(false);
   const [errorLog, setErrorLog] = useState("");
   
-  // NEW: Mobile responsiveness tracker
+  // NEW: Track if the loaded map is safely dry
+  const [isDry, setIsDry] = useState(false);
+  
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -98,6 +100,7 @@ export default function App() {
     const loadAndRenderGeoTIFF = async () => {
       setIsRendering(true);
       setErrorLog("");
+      setIsDry(false); // Reset dry state on new load
       
       try {
         const offsetLabel = activeOffset < 0 ? `minus${Math.abs(activeOffset)}` : activeOffset > 0 ? `plus${activeOffset}` : 'today';
@@ -158,7 +161,10 @@ export default function App() {
           });
         }
         
-        if (!hasWater) setErrorLog("Data loaded, but all depths are effectively 0 (dry).");
+        // THE FIX: Instead of throwing an error, we mark the basin as safely dry
+        if (!hasWater) {
+          setIsDry(true);
+        }
 
       } catch (error) {
         console.error("Fetch error:", error);
@@ -195,7 +201,7 @@ export default function App() {
       overflow: 'hidden'
     }}>
       
-      {/* SIDEBAR / BOTTOM SHEET */}
+      {/* SIDEBAR */}
       <div style={{ 
         width: isMobile ? '100%' : '350px', 
         height: isMobile ? 'auto' : '100vh',
@@ -252,8 +258,9 @@ export default function App() {
           <div style={{ fontSize: '12px', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <p><strong>Target Date:</strong> {currentDateString}</p>
             <p><strong>Source:</strong> Cloud Optimized GeoTIFF</p>
-            <p style={{ color: isRendering ? '#facc15' : errorLog ? '#ef4444' : '#4ade80' }}>
-              <strong>Status:</strong> {isRendering ? "Fetching Data..." : errorLog ? "Error" : "Rendered"}
+            {/* Dynamic UI Status Color */}
+            <p style={{ color: isRendering ? '#facc15' : errorLog ? '#ef4444' : isDry ? '#4ade80' : '#3b82f6' }}>
+              <strong>Status:</strong> {isRendering ? "Fetching Data..." : errorLog ? "Error" : isDry ? "Clear (No Flood)" : "Flood Detected"}
             </p>
             {errorLog && <p style={{ color: '#ef4444', fontSize: '10px', marginTop: '4px' }}>{errorLog}</p>}
             <p style={{ wordBreak: 'break-all', color: '#64748b', marginTop: '8px' }}>
@@ -267,12 +274,13 @@ export default function App() {
       <div style={{ flexGrow: 1, position: 'relative', minHeight: isMobile ? '55vh' : 'auto' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
         
-        <div style={{ position: 'absolute', bottom: isMobile ? '16px' : '24px', left: isMobile ? '16px' : '24px', backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #334155' }}>
-          <AlertTriangle color="#ef4444" size={24} />
+        {/* Dynamic Risk Alert Box */}
+        <div style={{ position: 'absolute', bottom: isMobile ? '16px' : '24px', left: isMobile ? '16px' : '24px', backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', border: isRendering ? '1px solid #334155' : isDry ? '1px solid #059669' : '1px solid #ef4444' }}>
+          {isDry ? <CheckCircle color="#10b981" size={24} /> : <AlertTriangle color="#ef4444" size={24} />}
           <div>
             <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Risk Status</p>
-            <h3 style={{ margin: 0, fontSize: '16px', fontFamily: 'monospace' }}>
-              {isRendering ? "Computing..." : "Monitoring"}
+            <h3 style={{ margin: 0, fontSize: '16px', fontFamily: 'monospace', color: isDry ? '#10b981' : 'white' }}>
+              {isRendering ? "Computing..." : isDry ? "Safe / Normal" : "Flood Warning"}
             </h3>
           </div>
         </div>
